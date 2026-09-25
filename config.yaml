@@ -30,7 +30,7 @@ schedule:
 
 # ── 大模型（OpenAI 兼容 API）────────────────────────────────────────────────
 llm:
-  base_url: "https://api.deepseek.com/v1"
+  base_url: "https://api.deepseek.com"
   api_key: "" # ← 留空。填入后才可执行 --run / --dry-run
   model: "deepseek-flash"
   temperature: 0.3

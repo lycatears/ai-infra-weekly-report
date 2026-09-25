@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "updated_at": "2026-09-26T02:17:11+08:00",
+  "entries": [
+    {
+      "date": "2026-09-25",
+      "url": "https://github.com/vllm-project/vllm/releases/tag/v0.30.0",
+      "normalized_url": "https://github.com/vllm-project/vllm/releases/tag/v0.30.0",
+      "title_key": "vllm v0 30 0"
+    },
+    {
+      "date": "2026-09-25",
+      "url": "https://developer.nvidia.com/blog/simplifying-model-serving-across-multiple-gpus-with-nvidia-tensorrt-multi-device-integration-in-nvidia-dynamo-triton/",
+      "normalized_url": "https://developer.nvidia.com/blog/simplifying-model-serving-across-multiple-gpus-with-nvidia-tensorrt-multi-device-integration-in-nvidia-dynamo-triton",
+      "title_key": "simplifying model serving across multiple gpus with nvidia tensorrt multi device integration in nvidia dynamo triton"
+    },
+    {
+      "date": "2026-09-25",
+      "url": "https://arxiv.org/abs/2609.27085",
+      "normalized_url": "https://arxiv.org/abs/2609.27085",
+      "title_key": "crossflow prefill decode elasticity for agentic llm serving"
+    },
+    {
+      "date": "2026-09-25",
+      "url": "https://arxiv.org/abs/2609.24197",
+      "normalized_url": "https://arxiv.org/abs/2609.24197",
+      "title_key": "h spec parallel speculative decoding without a drafter side kv cache"
+    },
+    {
+      "date": "2026-09-25",
+      "url": "https://arxiv.org/abs/2609.23816",
+      "normalized_url": "https://arxiv.org/abs/2609.23816",
+      "title_key": "splash co designing sparse attention with high bandwidth flash for efficient long context inference"
+    },
+    {
+      "date": "2026-09-25",
+      "url": "https://arxiv.org/abs/2609.25782",
+      "normalized_url": "https://arxiv.org/abs/2609.25782",
+      "title_key": "hot cold tiering of hbm and high bandwidth flash for agentic llm serving"
+    },
+    {
+      "date": "2026-09-25",
+      "url": "https://arxiv.org/abs/2609.27746",
+      "normalized_url": "https://arxiv.org/abs/2609.27746",
+      "title_key": "the kv cache working set online capacity planning for llm inference systems"
+    },
+    {
+      "date": "2026-09-25",
+      "url": "https://arxiv.org/abs/2609.24298",
+      "normalized_url": "https://arxiv.org/abs/2609.24298",
+      "title_key": "kv cobra kv cache compression via co optimized bit rank allocation"
+    },
+    {
+      "date": "2026-09-25",
+      "url": "https://arxiv.org/abs/2609.26333",
+      "normalized_url": "https://arxiv.org/abs/2609.26333",
+      "title_key": "disaggregated quantization specializing llm prefill and decode"
+    },
+    {
+      "date": "2026-09-25",
+      "url": "https://arxiv.org/abs/2609.24639",
+      "normalized_url": "https://arxiv.org/abs/2609.24639",
+      "title_key": "analytical power aware provisioning for prefill decode disaggregated ai inference"
+    },
+    {
+      "date": "2026-09-25",
+      "url": "https://aws.amazon.com/blogs/machine-learning/scaling-moe-reinforcement-learning-on-amazon-eks-with-efa-and-deepep-with-40-more-throughput/",
+      "normalized_url": "https://aws.amazon.com/blogs/machine-learning/scaling-moe-reinforcement-learning-on-amazon-eks-with-efa-and-deepep-with-40-more-throughput",
+      "title_key": "scaling moe reinforcement learning on amazon eks with efa and deepep with 40 more throughput"
+    },
+    {
+      "date": "2026-09-25",
+      "url": "https://developer.nvidia.com/blog/efficient-moe-training-for-biological-foundation-models/",
+      "normalized_url": "https://developer.nvidia.com/blog/efficient-moe-training-for-biological-foundation-models",
+      "title_key": "efficient moe training for biological foundation models"
+    },
+    {
+      "date": "2026-09-25",
+      "url": "https://aws.amazon.com/blogs/machine-learning/accelerate-multimodal-rl-training-with-skyrl-on-amazon-sagemaker-hyperpod/",
+      "normalized_url": "https://aws.amazon.com/blogs/machine-learning/accelerate-multimodal-rl-training-with-skyrl-on-amazon-sagemaker-hyperpod",
+      "title_key": "accelerate multimodal rl training with skyrl on amazon sagemaker hyperpod"
+    },
+    {
+      "date": "2026-09-25",
+      "url": "https://github.com/bertaye/agentic-cuda-optimizer",
+      "normalized_url": "https://github.com/bertaye/agentic-cuda-optimizer",
+      "title_key": "agentic cuda kernel optimizer"
+    },
+    {
+      "date": "2026-09-25",
+      "url": "https://pytorch.org/blog/hardware-agnostic-models-in-vllm/",
+      "normalized_url": "https://pytorch.org/blog/hardware-agnostic-models-in-vllm",
+      "title_key": "hardware agnostic models in vllm"
+    }
+  ]
+}
