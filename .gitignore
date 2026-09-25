@@ -1,0 +1,30 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- 虚拟环境 ---
+.venv/
+venv/
+env/
+
+# --- 本机配置（含密钥），不入库 ---
+config.local.yaml
+
+# --- 运行时产物 ---
+logs/
+state/_*
+state/*.tmp
+
+# 保留跨周去重状态，避免换机后重复报道
+!state/history.json
+
+# --- 编辑器 / 系统 ---
+.vscode/*
+!.vscode/settings.json
+.idea/
+Thumbs.db
+desktop.ini

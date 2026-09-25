@@ -1,0 +1,324 @@
+# =============================================================================
+# AI Infra 周报自动生成 — 主配置
+#
+# 只有 3 个字段需要你亲自修改：
+#   1. llm.api_key                  <- 留空时 `--run` 会硬失败（设计如此）
+#   2. sources.search_api.api_key   <- 留空则自动跳过该源，其余源不受影响
+#   3. task.run_as_system           <- 默认 false，无需管理员权限
+#
+# 所有字段都可省略：省略时使用 src/config.py 中的默认值。
+# =============================================================================
+config_version: 1
+
+# ── 路径、时区、日志 ─────────────────────────────────────────────────────────
+app:
+  timezone: "Asia/Shanghai"
+  output_dir: "." # 相对项目根；"." = 脚本所在目录
+  filename_template: "AI-Infra-周报-{date}-by-DeepSeek.md" # {date} 占位符必须存在
+  state_dir: "state"
+  log_dir: "logs"
+  log_level: "INFO" # DEBUG | INFO | WARNING | ERROR
+  log_retention_days: 30
+
+# ── 定时与补跑 ──────────────────────────────────────────────────────────────
+schedule:
+  weekday: 5 # 1=周一 … 7=周日；5=周五
+  hour: 22
+  minute: 0
+  lookback_weeks: 1 # 补跑最多回溯几周（1 = 可补上一周）
+  catchup_on_start: true # 启动/登录时若发现缺失则立即补跑
+
+# ── 大模型（OpenAI 兼容 API）────────────────────────────────────────────────
+llm:
+  base_url: "https://api.deepseek.com/v1"
+  api_key: "" # ← 留空。填入后才可执行 --run / --dry-run
+  model: "deepseek-chat"
+  temperature: 0.3
+  max_tokens: 4096
+  timeout: 120
+  max_retries: 3
+  shortlist_size: 30 # 阶段 A 初筛候选数
+  batch_size: 5 # 阶段 B 每批条数
+  max_workers: 3 # 阶段 B 并发度
+  use_json_mode: true # 使用 response_format={"type":"json_object"}
+
+# ── 报告 ────────────────────────────────────────────────────────────────────
+report:
+  title_prefix: "AI Infra 周报"
+  max_items: 15
+  min_items: 8 # 少于该数会告警，同时也是写入校验阈值
+  window_start_weekday: 1 # 抓取窗口起点 = 周一 00:00
+  window_end_uses_trigger: true # 抓取窗口终点 = 周五 22:00
+  # 是否把窗口终点延到「下一周的起点」，使相邻两期首尾相接。
+  # 若不延，「周五22:00 ~ 下周一00:00」发布的新闻会被永久漏掉（两期都不覆盖）。
+  # 实际终点会截断到本次运行时刻，所以不会抓到未来的新闻。
+  window_extend_to_next_week: true
+  include_stats_block: true # 输出「候选 N → 去重后 M → 收录 K」
+  include_source_list: true
+  links_per_item: 3
+
+# ── 去重 ────────────────────────────────────────────────────────────────────
+dedupe:
+  history_file: "state/history.json"
+  history_weeks: 4 # 跨周去重窗口
+  title_similarity_threshold: 0.88 # difflib.SequenceMatcher.ratio()
+  token_jaccard_threshold: 0.80 # 词集合 Jaccard
+  strip_query_params:
+    - "utm_source"
+    - "utm_medium"
+    - "utm_campaign"
+    - "utm_term"
+    - "utm_content"
+    - "ref"
+    - "source"
+    - "fbclid"
+    - "gclid"
+
+# ── 相关性打分 ──────────────────────────────────────────────────────────────
+relevance:
+  # 加权词典：越贴近 AI Infra 权重越高，避免泛词挤掉真话题。
+  # 注意 "inference" 是最被滥用的词（统计学论文里的「统计推断」也算），
+  # 因此权重刻意压低到 1.0，靠下面的具体短语来区分。
+  keywords:
+    "kv cache": 3.0
+    "prefix cache": 3.0
+    "paged attention": 3.0
+    "speculative decoding": 3.0
+    "inference engine": 3.0
+    "inference server": 3.0
+    "continuous batching": 3.0
+    "tensor parallel": 2.8
+    "pipeline parallel": 2.8
+    "expert parallel": 2.8
+    "context parallel": 2.8
+    "data parallel": 2.5
+    "gpu kernel": 2.8
+    "cuda kernel": 2.8
+    "memory bandwidth": 2.5
+    "flash attention": 2.5
+    "gpu memory": 2.2
+    "throughput": 1.3
+    "latency": 1.3
+    "quantization": 2.0
+    "mixture of experts": 2.0
+    "moe": 2.0
+    "disaggregation": 2.0
+    "prefill": 2.0
+    "decode": 0.8
+    "batching": 2.0
+    "checkpoint": 1.8
+    "vllm": 2.5
+    "sglang": 2.5
+    "tensorrt": 2.2
+    "triton": 1.8
+    "cuda": 1.8
+    "rocm": 1.8
+    "nvlink": 1.8
+    "hbm": 1.8
+    "fp8": 1.8
+    "int4": 1.5
+    "awq": 1.5
+    "gptq": 1.5
+    "lora": 1.2
+    "serving": 1.8
+    "distributed training": 1.5
+    "scheduler": 1.5
+    "inference": 0.8
+    "memory": 0.5
+
+  # 负向词典：命中即从关键词分中**扣减**。
+  # 用途是压掉歧义误报——最典型的是统计学/理论机器学习论文里的
+  # "conformal inference"、"causal inference" 等，它们并非 AI Infra。
+  negative_keywords:
+    "conformal inference": 3.0
+    "statistical inference": 3.0
+    "causal inference": 3.0
+    "bayesian inference": 3.0
+    "variational inference": 2.5
+    "selective inference": 3.0
+    "approximate inference": 2.5
+    "inference for": 1.5
+    "this page": 2.5
+    "web server": 2.0
+    "federated learning": 1.5
+    "wireless": 1.5
+    "survey": 1.0
+    "curriculum": 1.5
+
+  source_weights:
+    arxiv: 1.2
+    github: 1.1
+    hackernews: 1.0
+    rss: 1.0
+    search_api: 0.9
+    reddit: 0.8
+  score_weights:
+    keyword: 1.0
+    heat: 0.5
+    source: 0.3
+  # 准入线：低于该关键词分的候选在送进大模型前被过滤（0 = 不过滤）。
+  # 1.5 的含义是「至少命中一个具体短语（如 kv cache 3.0），或两个中等词」，
+  # 单个泛词（latency 1.3 / decode 0.8）不足以放行，这样能挡掉
+  # HN 首页里大量与 AI Infra 无关的新闻，节省 token。
+  # 若过滤后候选数低于 report.min_items，会自动放宽，不会开天窗。
+  min_keyword_score: 1.5
+  # 短名单中单个来源最多贡献多少条。arXiv 一次能返回上百条论文，
+  # 不设配额会把真正的工程发布（GitHub Release 等）挤掉。
+  # 0 = 不限制。
+  shortlist_per_source_cap: 12
+
+# ── 数据源 ──────────────────────────────────────────────────────────────────
+sources:
+  hackernews:
+    enabled: true
+    queries:
+      - "LLM inference"
+      - "vLLM"
+      - "KV cache"
+      - "GPU kernel"
+      - "MoE"
+      - "quantization"
+      - "Triton"
+      - "CUDA"
+      - "distributed training"
+      - "model serving"
+    hits_per_page: 50
+    min_points: 10
+    include_front_page: true
+    request_delay_ms: 120 # 关键词之间轻微延时，避免触发限流
+
+  # 注意：Reddit 的 .json 端点会拦截非浏览器 UA，已实测失败。
+  # 这里设为可选源：失败只记 warning，不影响其他源。
+  reddit:
+    enabled: true
+    subreddits:
+      - "MachineLearning"
+      - "LocalLLaMA"
+      - "mlops"
+    listing: "top" # top | hot | new
+    time_filter: "week" # hour | day | week | month
+    limit: 50
+    min_score: 20
+
+  arxiv:
+    enabled: true
+    categories:
+      - "cs.DC"
+      - "cs.LG"
+      - "cs.AR"
+    # 刻意用**具体短语**而非 "inference" / "memory" 这类泛词。
+    # 实测教训：用泛词会把大量统计学与理论机器学习论文拉进来，
+    # "conformal inference"、"selective inference" 都会被误判成 AI Infra。
+    abs_terms:
+      - "LLM serving"
+      - "inference system"
+      - "inference engine"
+      - "serving system"
+      - "GPU kernel"
+      - "CUDA kernel"
+      - "KV cache"
+      - "tensor parallel"
+      - "speculative decoding"
+      - "quantization"
+      - "memory bandwidth"
+      - "throughput"
+    max_results: 100
+    sort_by: "submittedDate" # submittedDate | lastUpdatedDate | relevance
+    request_delay_ms: 3000 # arXiv 官方建议请求间隔 >= 3s
+
+  github:
+    enabled: true
+    mode: "both" # releases | search | both
+    repositories:
+      - "vllm-project/vllm"
+      - "sgl-project/sglang"
+      - "ray-project/ray"
+      - "pytorch/pytorch"
+      - "NVIDIA/TensorRT-LLM"
+      - "microsoft/DeepSpeed"
+      - "NVIDIA/Megatron-LM"
+      - "triton-lang/triton"
+      - "Dao-AILab/flash-attention"
+      - "LMCache/LMCache"
+      - "kvcache-ai/Mooncake"
+    search:
+      queries:
+        - "llm inference"
+        - "kv cache"
+        - "gpu kernel"
+      created_within_days: 7
+      min_stars: 50
+    include_prerelease: false
+    # 要求 tag 形如版本号（至少含「数字.数字」）。这一条能挡掉绝大多数
+    # 逐提交 / CI 自动发布，例如 pytorch 的 trunk/<commit-sha>、
+    # viable/strict/<时间戳>，比穷举关键词更鲁棒。
+    require_version_like_tag: true
+    # 额外的 CI / 定时构建产物关键词（在版本号判据之外再兜一层）
+    exclude_tag_patterns:
+      - "(?i)viable"
+      - "(?i)nightly"
+      - "(?i)^ci[-/]"
+      - "(?i)^test[-/]"
+      - "(?i)^dev[-/]"
+      - "(?i)^trunk"
+      - "(?i)^unstable"
+      - "(?i)canary"
+    request_delay_ms: 500
+
+  rss:
+    enabled: true
+    # 全部为实测可用的 feed（2026-09 验证）。
+    # 刻意不放 blogs.nvidia.com/feed/ ——那是市场向内容，会混入
+    # "GeForce NOW 本周游戏"之类的噪音；改用技术向的 Developer Blog。
+    # Anthropic 已关闭 RSS（所有路径均 404），故已移除。
+    feeds:
+      - name: "NVIDIA Developer Blog"
+        url: "https://developer.nvidia.com/blog/feed/"
+      - name: "PyTorch Blog"
+        url: "https://pytorch.org/blog/feed.xml"
+      - name: "Hugging Face Blog"
+        url: "https://huggingface.co/blog/feed.xml"
+      - name: "OpenAI News"
+        url: "https://openai.com/news/rss.xml"
+      - name: "Together AI"
+        url: "https://www.together.ai/blog/rss.xml"
+      - name: "AWS ML Blog"
+        url: "https://aws.amazon.com/blogs/machine-learning/feed/"
+      - name: "Databricks"
+        url: "https://www.databricks.com/feed"
+      - name: "BAIR Blog"
+        url: "https://bair.berkeley.edu/blog/feed.xml"
+    max_items_per_feed: 10
+
+  # api_key 为空 -> 无条件静默跳过（只记一条 info 日志），不报错
+  search_api:
+    enabled: true
+    provider: "tavily" # tavily | brave | serpapi
+    api_key: ""
+    queries:
+      - "AI infrastructure news"
+      - "LLM serving optimization"
+      - "GPU kernel optimization"
+    results_per_query: 10
+    freshness: "week"
+    endpoint_overrides:
+      tavily: "https://api.tavily.com/search"
+      brave: "https://api.search.brave.com/res/v1/web/search"
+      serpapi: "https://serpapi.com/search.json"
+
+# ── HTTP 公共参数 ───────────────────────────────────────────────────────────
+http:
+  timeout: 15
+  max_retries: 2
+  backoff_factor: 1.5
+  user_agent: "ai-infra-weekly-report/1.0 (+https://github.com/local/ai-infra-weekly-report)"
+
+# ── Windows 计划任务 ────────────────────────────────────────────────────────
+task:
+  name: "AI-Infra-Weekly-Report"
+  logon_delay_minutes: 2
+  run_as_system: false # true -> 改用 AtStartup + SYSTEM/Highest（需管理员）
+  execution_time_limit_minutes: 120
+  restart_count: 2 # 失败重试次数（LLM 硬失败时的主要兜底）
+  restart_interval_minutes: 10
+  wake_to_run: true

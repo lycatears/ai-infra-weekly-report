@@ -1,0 +1,10 @@
+openai>=1.40.0
+requests>=2.32.0
+feedparser>=6.0.11
+PyYAML>=6.0.1
+python-dateutil>=2.9.0
+
+# Windows 没有系统时区数据库，zoneinfo 必须依赖 PyPI 的 tzdata，
+# 否则 ZoneInfo("Asia/Shanghai") 会抛 ZoneInfoNotFoundError。
+# 无条件声明（而非加 win32 标记），也让精简的 Linux 容器同样可用。
+tzdata>=2024.1
