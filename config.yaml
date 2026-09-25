@@ -32,7 +32,7 @@ schedule:
 llm:
   base_url: "https://api.deepseek.com/v1"
   api_key: "" # ← 留空。填入后才可执行 --run / --dry-run
-  model: "deepseek-chat"
+  model: "deepseek-flash"
   temperature: 0.3
   max_tokens: 4096
   timeout: 120
