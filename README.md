@@ -9,6 +9,8 @@
 
 ## 快速开始
 
+### Windows
+
 ```powershell
 # 1. 创建虚拟环境并安装依赖
 python -m venv .venv
@@ -24,9 +26,26 @@ python -m venv .venv
 # 4. 生成一期真实报告
 .\.venv\Scripts\python.exe main.py --run --force
 
-# 5. 注册计划任务（每周五 22:00 + 开机补跑）
+# 5. 注册计划任务（每周五 22:00 + 登陆/开机补跑）
 .\.venv\Scripts\python.exe main.py --install-task
 ```
+
+### Linux
+
+```bash
+# 1-2 步合并：自动建 venv、装依赖、自检、注册 crontab
+scripts/deploy_linux.sh
+
+# 如果还没填 API Key，脚本会提示下一步；填好后再验证：
+.venv/bin/python main.py --check
+.venv/bin/python main.py --run --force
+
+# crontab 内容可用 --dry-run 预览（不修改任何东西）
+scripts/install_cron.sh --dry-run
+```
+
+> **建议用普通用户运行**，不要 `sudo`：crontab 是用户级的，以 root 注册会让
+> 任务以 root 身份运行，既没必要也不安全。部署过程本身不需要 root 权限。
 
 > **注意**：`llm.api_key` 留空时 `--run` 会**直接失败并退出码 1**（这是刻意设计，
 > 避免产出残缺报告）。此时请先用 `--no-llm` 验证抓取链路。
@@ -44,8 +63,8 @@ python -m venv .venv
 | `python main.py --run --no-llm` | 跳过所有大模型调用，导出候选清单到 `state/` |
 | `python main.py --run --dry-run` | 跑完整流程但不更新 `history.json` |
 | `python main.py --run --limit-sources arxiv,github` | 只用指定数据源，便于小样本联调 |
-| `python main.py --install-task [--run-as-system]` | 注册 Windows 计划任务 |
-| `python main.py --uninstall-task` | 卸载计划任务 |
+| `python main.py --install-task [--run-as-system]` | 注册定时任务（Windows 计划任务 / Linux crontab，按系统自动选择） |
+| `python main.py --uninstall-task` | 卸载定时任务 |
 | `python scripts/check_sources.py [源名...]` | 数据源连通性自检 |
 
 **退出码**：`0` 成功（含正常跳过） · `1` 运行时失败 · `2` 配置错误 · `3` 未预期错误
@@ -92,9 +111,67 @@ python -m venv .venv
 
 ---
 
-## 计划任务
+## 定时任务
 
-### 安装
+`main.py --install-task` 会**按当前系统自动选择**调度方式：
+
+| 平台 | 调度器 | 注册脚本 | 运行脚本 |
+|---|---|---|---|
+| Windows | 任务计划程序 | `scripts/install_task.ps1` | `scripts/run_weekly.ps1` |
+| Linux | crontab | `scripts/install_cron.sh` | `scripts/run_weekly.sh` |
+
+### Linux（crontab）
+
+```bash
+# 一键部署：建 venv + 装依赖 + 自检 + 注册 crontab（不需要 root）
+scripts/deploy_linux.sh
+
+# 或者分步执行
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python main.py --install-task
+
+# 只查看将要写入的内容，不改动 crontab
+scripts/install_cron.sh --dry-run
+
+# 卸载
+.venv/bin/python main.py --uninstall-task
+```
+
+写入 crontab 的**三条**记录：
+
+| 表达式 | 作用 |
+|---|---|
+| `0 22 * * 5` | 每周五 22:00 常规触发（跟随 `config.yaml` 的 `schedule.*`） |
+| `0 * * * *` | **兜底轮询**：每小时检查一次是否需要补跑 |
+| `@reboot sleep 120 && …` | 开机后 2 分钟补跑一次 |
+
+> **兜底轮询是 Linux 上必需的一层。** cron 没有 Windows 计划任务的
+> `StartWhenAvailable` —— 周五 22:00 时机器若处于关机状态，cron **不会**补跑。
+> 靠这条周期任务 + `main.py --run` 自身的幂等判定，把漏掉的那次补上。
+> 调整频率：`scripts/install_cron.sh --catchup-minutes 30`；
+> 关闭：`--catchup-minutes 0`。
+
+所有条目都写在首尾标记之间，**重复安装是原地替换而非追加**，
+也不会碰你自己写的其它 crontab 条目；卸载同样幂等。
+
+日志分两份：
+
+- `logs/task-YYYYMMDD.log` —— 完整输出（与 Windows 侧一致）
+- `logs/cron.log` —— 包装脚本的一行摘要，以及「脚本还没跑起来就挂了」的现场
+
+`run_weekly.sh` 会自己设好 `PYTHONUTF8=1`。cron 通常不设置 `LANG`/`LC_ALL`，
+一旦 Python 的 UTF-8 模式也没打开，stdout 就会退化成 ascii，
+打印中文直接 `UnicodeEncodeError` **崩溃**（不是乱码，是崩）。
+
+**但不要依赖发行版的默认值**：实测 Ubuntu 26.04 + Python 3.14 默认已打开 UTF-8 模式
+（PEP 686 计划自 3.15 起默认），因此不显式设置也可能一切正常；
+旧版本或精简镜像则不然。显式设置的成本为零，所以照设。
+
+并发保护用 `flock`（对应 Windows 的 `MultipleInstances=IgnoreNew`）。
+`flock` 来自 util-linux，主流发行版都自带；极精简的镜像（Alpine + busybox）
+若缺失会降级为「只告警、不锁」，并在日志里写明。
+
+### Windows（任务计划程序）
 
 ```powershell
 # 当前用户 + 登录触发（无需管理员）
@@ -122,6 +199,7 @@ python -m venv .venv
 ### 验证与排查
 
 ```powershell
+# --- Windows ---
 # 查看任务配置
 schtasks /query /tn "AI-Infra-Weekly-Report" /v /fo LIST
 
@@ -130,17 +208,37 @@ schtasks /run /tn "AI-Infra-Weekly-Report"
 
 # 查看任务日志（注意必须指定 utf8，否则中文乱码）
 Get-Content logs\task-$(Get-Date -Format yyyyMMdd).log -Encoding utf8 -Tail 50
-
-# 卸载
-.\.venv\Scripts\python.exe main.py --uninstall-task
 ```
 
-### 补跑机制（双层保障）
+```bash
+# --- Linux ---
+# 查看 crontab 内容
+crontab -l
 
-| 层 | 机制 | 覆盖场景 |
-|---|---|---|
-| 1 | 计划任务 `StartWhenAvailable` | 触发时刻机器关机 → 开机后自动补跑 |
-| 2 | `src/schedule.py` 的 `decide()` | 任意时刻被触发（登录、手动）都会检查本周报告是否存在，缺失则立即生成 |
+# 手动跑一次（--force 可忽略「报告已存在」检查）
+scripts/run_weekly.sh
+scripts/run_weekly.sh --no-llm      # 不调大模型，只验证抓取与去重
+
+# 查看日志
+tail -f logs/task-$(date +%Y%m%d).log
+cat logs/cron.log
+
+# 卸载
+.venv/bin/python main.py --uninstall-task
+```
+
+### 补跑机制（多层保障）
+
+| 平台 | 层 | 机制 | 覆盖场景 |
+|---|---|---|---|
+| 通用 | 3 | `src/schedule.py` 的 `decide()` | 任意时刻被触发都会检查本周报告是否存在，缺失则立即生成 |
+| Windows | 1 | 计划任务 `StartWhenAvailable` | 触发时刻机器关机 → 开机后自动补跑 |
+| Windows | 2 | 登录／开机触发器 | 开机后延迟 2 分钟补跑一次 |
+| Linux | 1 | crontab 兜底轮询（每小时） | 触发时刻机器关机 → 一小时内补上 |
+| Linux | 2 | crontab `@reboot` | 开机后 2 分钟补跑一次 |
+
+第 3 层才是真正的保底：前三层的调度器只负责「把进程叫起来」，
+「这周到底该不该生成」完全由 `decide()` 判断，因此多叫几次完全无害。
 
 补跑判定表：
 
@@ -181,11 +279,16 @@ ai-infra-weekly-report/
 │   ├── llm.py                   # 两阶段大模型调用
 │   ├── report.py                # Markdown 渲染与校验
 │   ├── io_utils.py              # 原子写入
-│   └── task_setup.py            # 计划任务驱动
+│   └── task_setup.py            # 定时任务驱动（按平台分发到 PS / bash）
 ├── scripts/
-│   ├── run_weekly.ps1           # 计划任务执行体
-│   ├── install_task.ps1         # 注册任务
-│   ├── uninstall_task.ps1       # 卸载任务
+│   ├── run_weekly.ps1           # Windows 执行体（计划任务调用）
+│   ├── install_task.ps1         #   注册计划任务
+│   ├── uninstall_task.ps1       #   卸载计划任务
+│   ├── run_weekly.sh            # Linux 执行体（cron 调用）
+│   ├── install_cron.sh          #   写入 crontab（幂等）
+│   ├── uninstall_cron.sh        #   移除 crontab（幂等）
+│   ├── deploy_linux.sh          #   Linux 一键部署
+│   ├── normalize_shell_scripts.py # 修正 .sh 的 BOM/行尾
 │   └── check_sources.py         # 数据源自检
 ├── tests/                       # pytest 单元测试
 ├── logs/                        # 运行日志（自动创建）
@@ -249,7 +352,10 @@ arXiv 一次能返回上百条论文，GitHub 一周可能只有两三个发布�
 | `--run` 立即失败、退出码 1 | `llm.api_key` 为空。填写它，或先用 `--no-llm` |
 | 计划任务日志中文乱码 | 用 `Get-Content ... -Encoding utf8` 读取 |
 | `install_task.ps1` 报解析错误 | `.ps1` 被存成了无 BOM 的 UTF-8，PowerShell 5.1 会按 GBK 解析。请保存为 **UTF-8 with BOM** |
-| PowerShell 拒绝执行脚本 | 用 `-ExecutionPolicy Bypass` 调用（`main.py --install-task` 已自动加上） |
+| 直接运行 `.ps1` 报「禁止执行脚本」 | 用 `-ExecutionPolicy Bypass` 调用（`main.py --install-task` 已自动加上）；或在当前会话执行 `Set-ExecutionPolicy -Scope Process RemoteSigned` |
+| Linux：crontab 里的任务不执行 | ①看 `logs/cron.log`（脚本还没跑起来就挂了的现场都在这里）②确认 `crontab -l` 能看到条目 ③确认 cron 服务在跑：`systemctl status cron`（Ubuntu）或 `systemctl status crond`（RHEL） ④检查 `/var/log/syslog` 或 `journalctl -u cron` |
+| Linux：日志里出现 `UnicodeEncodeError` | cron 没设 `LANG`，Python 退回了 ASCII。`run_weekly.sh` 已设 `PYTHONUTF8=1`，若仍报错说明不是通过该脚本启动的 |
+| Linux：脚本报 `$'\r': command not found` | `.sh` 被存成了 CRLF 行尾。修复：`python scripts/normalize_shell_scripts.py` |
 | 某个数据源长期无产出 | 跑 `python scripts/check_sources.py <源名>` 定位；Reddit 属预期内失效 |
 | 报告条目少于 8 条 | 检查 `relevance.min_keyword_score` 是否过严；脚本会自动放宽，日志中会记录 |
 | 想重新收录某条已发布内容 | 从 `state/history.json` 删掉对应条目，或用 `--run --force`（但仍会走跨周去重） |

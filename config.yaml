@@ -313,7 +313,8 @@ http:
   backoff_factor: 1.5
   user_agent: "ai-infra-weekly-report/1.0 (+https://github.com/local/ai-infra-weekly-report)"
 
-# ── Windows 计划任务 ────────────────────────────────────────────────────────
+# ── 定时任务（Windows 计划任务 / Linux crontab）────────────────────────────
+# 用 `python main.py --install-task` 按当前系统自动选择调度方式。
 task:
   name: "AI-Infra-Weekly-Report"
   logon_delay_minutes: 2
@@ -322,3 +323,14 @@ task:
   restart_count: 2 # 失败重试次数（LLM 硬失败时的主要兜底）
   restart_interval_minutes: 10
   wake_to_run: true
+
+  # ── 以下两项仅 Linux(crontab) 生效 ──────────────────────────────────────
+
+  # 兜底轮询间隔（分钟）：0=关闭，60=每小时整点。
+  # cron 没有 Windows 的 StartWhenAvailable，关机期间错过的任务不会自动补跑，
+  # 所以需要一条周期任务靠 decide() 的幂等判定把漏掉的那次补上。
+  # 建议取 60 的约数（5/10/15/20/30），否则触发时刻会不均匀。
+  catchup_interval_minutes: 60
+
+  # @reboot 之后延迟多少秒再跑，给网络与文件系统留就绪时间。0=不要这条。
+  boot_delay_seconds: 120

@@ -8,8 +8,8 @@
     python main.py --run                         # 完整流程
     python main.py --run --force                 # 忽略存在性检查
     python main.py --run --dry-run               # 完整流程但不写 history
-    python main.py --install-task                # 注册 Windows 计划任务
-    python main.py --uninstall-task              # 卸载计划任务
+    python main.py --install-task                # 注册定时任务（Windows 计划任务 / Linux crontab）
+    python main.py --uninstall-task              # 卸载定时任务
 
 退出码::
 
@@ -58,8 +58,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="只判定本次是否应当生成报告，不联网、不写文件",
     )
-    mode.add_argument("--install-task", action="store_true", help="注册 Windows 计划任务")
-    mode.add_argument("--uninstall-task", action="store_true", help="卸载 Windows 计划任务")
+    mode.add_argument(
+        "--install-task",
+        action="store_true",
+        help="注册定时任务：Windows 计划任务 / Linux crontab（按当前系统自动选择）",
+    )
+    mode.add_argument("--uninstall-task", action="store_true", help="卸载定时任务")
 
     parser.add_argument("--no-llm", action="store_true", help="跳过调用大模型，仅输出候选清单（需与 --run 同用）")
     parser.add_argument("--force", action="store_true", help="忽略「报告已存在」检查，强制生成")
@@ -71,7 +75,11 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="A,B",
         help="只启用指定数据源，便于小样本联调（如 arxiv,github）",
     )
-    parser.add_argument("--run-as-system", action="store_true", help="与 --install-task 同用：注册为 SYSTEM + 开机触发")
+    parser.add_argument(
+        "--run-as-system",
+        action="store_true",
+        help="与 --install-task 同用：注册为 SYSTEM + 开机触发（仅 Windows 有效）",
+    )
     parser.add_argument("--log-level", help="覆盖 app.log_level")
     return parser
 

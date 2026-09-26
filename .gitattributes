@@ -1,0 +1,15 @@
+# 行尾与编码约定 —— 跨平台协作的关键，别删。
+#
+# 只针对本项目真正在意的扩展名做约定，**不用** `* text=auto`，
+# 免得首次提交时对全仓库做一次大规模 renormalize。
+
+# .sh 必须是 LF。
+# 带 CRLF 的 shell 脚本在 Linux 上会以 `bash: $'\r': command not found`
+# 这类神秘错误失败，而在 Windows 编辑器里打开完全看不出异常。
+*.sh text eol=lf
+
+# .ps1 用 CRLF（Windows PowerShell 的传统行为）。
+# 注意：这里**不涉及** BOM。.ps1 必须带 UTF-8 BOM 是内容层面的要求
+# （PowerShell 5.1 会用系统 ANSI 解析无 BOM 的脚本），git 的 eol 转换
+# 不会碰 BOM，所以必须由编辑工具保证，并由 tests/test_scripts.py 守卫。
+*.ps1 text eol=crlf
